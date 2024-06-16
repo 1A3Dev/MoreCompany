@@ -12,26 +12,29 @@ namespace MoreCompany
         {
             if (name.StartsWith("PlayerVolume") || name.StartsWith("PlayerPitch"))
             {
-                string cutName = name.Replace("PlayerVolume", "").Replace("PlayerPitch", "");
-                int playerObjectNumber = int.Parse(cutName);
-
-                PlayerControllerB playerControllerB = StartOfRound.Instance.allPlayerScripts[playerObjectNumber];
-                if (playerControllerB != null)
+                if (MainClass.newPlayerCount > 4)
                 {
-                    AudioSource voiceSource = playerControllerB.currentVoiceChatAudioSource;
-                    if (voiceSource)
-                    {
-                        if (name.StartsWith("PlayerVolume"))
-                        {
-                            voiceSource.volume = value / 16;
-                        }
-                        else if (name.StartsWith("PlayerPitch"))
-                        {
-                            voiceSource.pitch = value;
-                        }
-                    }
+                    string cutName = name.Replace("PlayerVolume", "").Replace("PlayerPitch", "");
+                    int playerObjectNumber = int.Parse(cutName);
 
-                    return false;
+                    PlayerControllerB playerControllerB = StartOfRound.Instance.allPlayerScripts[playerObjectNumber];
+                    if (playerControllerB != null)
+                    {
+                        AudioSource voiceSource = playerControllerB.currentVoiceChatAudioSource;
+                        if (voiceSource)
+                        {
+                            if (name.StartsWith("PlayerVolume"))
+                            {
+                                voiceSource.volume = value / 16;
+                            }
+                            else if (name.StartsWith("PlayerPitch"))
+                            {
+                                voiceSource.pitch = value;
+                            }
+                        }
+
+                        return false;
+                    }
                 }
             }
 

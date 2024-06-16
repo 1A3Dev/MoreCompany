@@ -239,7 +239,7 @@ namespace MoreCompany
                     {
                         if (playerScript.isPlayerControlled || playerScript.isPlayerDead)
                         {
-                            float num = (f / playerVolume.maxValue) + 1f;
+                            float num = (f - playerVolume.minValue) / (playerVolume.maxValue - playerVolume.minValue);
                             if (num <= -1f)
                             {
                                 num = -70f;
@@ -247,7 +247,7 @@ namespace MoreCompany
                             SoundManager.Instance.playerVoiceVolumes[finalIndex] = num;
                         }
                     });
-                    playerVolume.value = Math.Clamp((SoundManager.Instance.playerVoiceVolumes[i] - 1) * playerVolume.maxValue, playerVolume.minValue, playerVolume.maxValue);
+                    playerVolume.value = Math.Clamp((SoundManager.Instance.playerVoiceVolumes[i] * (playerVolume.maxValue - playerVolume.minValue)) + playerVolume.minValue, playerVolume.minValue, playerVolume.maxValue);
 
                     Button kickButton = spawnedPlayer.transform.Find("KickButton").GetComponent<Button>();
                     kickButton.onClick.AddListener(() =>

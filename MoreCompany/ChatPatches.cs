@@ -47,15 +47,25 @@ namespace MoreCompany
         {
             MainClass.playerIdsAndCosmetics.Clear();
 
-            string built = $"[morecompanycosmetics];{__instance.playerClientId};-1";
-            foreach (var cosmetic in CosmeticRegistry.locallySelectedCosmetics)
+            if (GameNetworkManager.Instance && (
+                GameNetworkManager.Instance.disableSteam ||
+                (!GameNetworkManager.Instance.currentLobby.HasValue || GameNetworkManager.Instance.currentLobby.Value.GetData("morecompany") == "t")
+            ))
             {
-                if (CosmeticRegistry.cosmeticInstances.ContainsKey(cosmetic))
+                string built = $"[morecompanycosmetics];{__instance.playerClientId};-1";
+                foreach (var cosmetic in CosmeticRegistry.locallySelectedCosmetics)
                 {
-                    built += ";" + cosmetic;
+                    if (CosmeticRegistry.cosmeticInstances.ContainsKey(cosmetic))
+                    {
+                        built += ";" + cosmetic;
+                    }
                 }
+                AddTextMessageServerRpc?.Invoke(HUDManager.Instance, new object[] { built });
             }
-            AddTextMessageServerRpc?.Invoke(HUDManager.Instance, new object[] { built });
+            else
+            {
+                MainClass.StaticLogger.LogInfo("Temporarily disabled cosmetic syncing due to the host not using MoreCompany.");
+            }
         }
 
         [HarmonyPatch(typeof(HUDManager), "AddTextMessageServerRpc")]
