@@ -240,7 +240,7 @@ namespace MoreCompany
                         if (playerScript.isPlayerControlled || playerScript.isPlayerDead)
                         {
                             float num = (f - playerVolume.minValue) / (playerVolume.maxValue - playerVolume.minValue);
-                            if (num <= -1f)
+                            if (num <= 0f)
                             {
                                 num = -70f;
                             }

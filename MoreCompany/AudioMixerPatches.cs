@@ -8,33 +8,39 @@ namespace MoreCompany
     [HarmonyPatch(typeof(AudioMixer), "SetFloat")]
     public static class AudioMixerSetFloatPatch
     {
-        public static bool Prefix(string name, float value)
+        public static bool Prefix(string name, ref float value)
         {
             if (name.StartsWith("PlayerVolume") || name.StartsWith("PlayerPitch"))
             {
-                if (MainClass.newPlayerCount > 4)
-                {
-                    string cutName = name.Replace("PlayerVolume", "").Replace("PlayerPitch", "");
-                    int playerObjectNumber = int.Parse(cutName);
+                string cutName = name.Replace("PlayerVolume", "").Replace("PlayerPitch", "");
+                int playerObjectNumber = int.Parse(cutName);
 
-                    PlayerControllerB playerControllerB = StartOfRound.Instance.allPlayerScripts[playerObjectNumber];
-                    if (playerControllerB != null)
+                PlayerControllerB playerControllerB = StartOfRound.Instance.allPlayerScripts[playerObjectNumber];
+                if (playerControllerB != null)
+                {
+                    AudioSource voiceSource = playerControllerB.currentVoiceChatAudioSource;
+                    if (voiceSource)
                     {
-                        AudioSource voiceSource = playerControllerB.currentVoiceChatAudioSource;
-                        if (voiceSource)
+                        if (name.StartsWith("PlayerVolume"))
                         {
-                            if (name.StartsWith("PlayerVolume"))
-                            {
-                                voiceSource.volume = value / 16;
-                            }
-                            else if (name.StartsWith("PlayerPitch"))
+                            voiceSource.volume = value / 16;
+                            value = 16f;
+                            return true;
+                        }
+                        else if (name.StartsWith("PlayerPitch"))
+                        {
+                            if (MainClass.newPlayerCount > 4)
                             {
                                 voiceSource.pitch = value;
                             }
+                            else
+                            {
+                                return true;
+                            }
                         }
-
-                        return false;
                     }
+
+                    return false;
                 }
             }
 
