@@ -181,10 +181,6 @@ namespace MoreCompany
         {
             playerCount.Value = newPlayerCount;
             StaticConfig.Save();
-            if (GameNetworkManager.Instance != null)
-            {
-                GameNetworkManager.Instance.maxAllowedPlayers = newPlayerCount;
-            }
         }
 
         public static void ReadSettingsFromFile()
@@ -198,10 +194,6 @@ namespace MoreCompany
                 newPlayerCount = defaultPlayerCount;
                 playerCount.Value = newPlayerCount;
                 StaticConfig.Save();
-            }
-            if (GameNetworkManager.Instance != null)
-            {
-                GameNetworkManager.Instance.maxAllowedPlayers = newPlayerCount;
             }
         }
 
