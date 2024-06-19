@@ -24,8 +24,6 @@ namespace MoreCompany
                         if (name.StartsWith("PlayerVolume"))
                         {
                             voiceSource.volume = value / 16;
-                            value = 16f;
-                            return true;
                         }
                         else if (name.StartsWith("PlayerPitch"))
                         {
