@@ -8,7 +8,7 @@ namespace MoreCompany
     [HarmonyPatch(typeof(AudioMixer), "SetFloat")]
     public static class AudioMixerSetFloatPatch
     {
-        public static bool Prefix(string name, ref float value)
+        public static bool Prefix(string name, float value)
         {
             if (name.StartsWith("PlayerVolume") || name.StartsWith("PlayerPitch"))
             {
