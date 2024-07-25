@@ -29,14 +29,7 @@ namespace MoreCompany
                         }
                         else if (name.StartsWith("PlayerPitch"))
                         {
-                            if (MainClass.newPlayerCount > 4)
-                            {
-                                voiceSource.pitch = value;
-                            }
-                            else
-                            {
-                                return true;
-                            }
+                            voiceSource.pitch = value;
                         }
                     }
 
