@@ -15,8 +15,9 @@ namespace MoreCompany
             foreach (LobbySlot lobbySlot in lobbySlots)
             {
                 lobbySlot.playerCount.text = string.Format("{0} / {1}", lobbySlot.thisLobby.MemberCount, lobbySlot.thisLobby.MaxMembers);
+
                 string lobbyVers = lobbySlot.thisLobby.GetData("vers");
-                if (lobbyVers != GameNetworkManager.Instance.gameVersionNum.ToString())
+                if (MainClass.showVanillaLobbies.Value && lobbyVers != GameNetworkManager.Instance.gameVersionNum.ToString())
                 {
                     lobbySlot.LobbyName.text = string.Format("[v{0}] {1}", lobbyVers, lobbySlot.thisLobby.GetData("name"));
                 }
@@ -60,14 +61,19 @@ namespace MoreCompany
             ___stringFilters.Remove("vers");
 
             int currentVersion = GameNetworkManager.Instance.gameVersionNum;
-            //__instance = __instance.WithKeyValue("vers", (currentVersion + VersionIncAmount).ToString());
-
-            // Since steam doesn't allow the Equal comparison on the same key multiple times using an OR we have to exclude disallowed versions instead
-            __instance = __instance.WithHigher("vers", currentVersion - 1);
-            __instance = __instance.WithLower("vers", (currentVersion + 1) + VersionIncAmount);
-            for (int i = currentVersion + 1; i < currentVersion + VersionIncAmount; i++)
+            if (MainClass.showVanillaLobbies.Value)
             {
-                __instance = __instance.WithNotEqual("vers", i);
+                // Since steam doesn't allow the Equal comparison on the same key multiple times using an OR we have to exclude disallowed versions instead
+                __instance = __instance.WithHigher("vers", currentVersion - 1);
+                __instance = __instance.WithLower("vers", (currentVersion + 1) + VersionIncAmount);
+                for (int i = currentVersion + 1; i < currentVersion + VersionIncAmount; i++)
+                {
+                    __instance = __instance.WithNotEqual("vers", i);
+                }
+            }
+            else
+            {
+                __instance = __instance.WithKeyValue("vers", (currentVersion + VersionIncAmount).ToString());
             }
         }
 
