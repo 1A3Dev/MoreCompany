@@ -67,7 +67,7 @@ namespace MoreCompany
                 MainClass.StaticLogger.LogInfo($"[SteamMatchmaking_OnLobbyCreated] Version override from {__instance.gameVersionNum} to {newVersionNumber}");
                 __instance.gameVersionNum = newVersionNumber;
             }
-            lobby.SetData("morecompany", "t");
+            lobby.SetData("morecompanyVersion", ActualGameVersion.ToString());
         }
 
         [HarmonyPatch(typeof(GameNetworkManager), "SetInstanceValuesBackToDefault")]
@@ -99,7 +99,7 @@ namespace MoreCompany
             }
             else
             {
-                __instance = __instance.WithKeyValue("vers", (ActualGameVersion + VersionIncAmount).ToString());
+                __instance = __instance.WithKeyValue("morecompanyVersion", ActualGameVersion.ToString());
             }
         }
 
