@@ -115,7 +115,7 @@ namespace MoreCompany
         {
             messagePayload.ReadValueSafe(out string cosmeticsStr);
             Dictionary<int, List<string>> tmpPlayerIdsAndCosmetics = JsonConvert.DeserializeObject<Dictionary<int, List<string>>>(cosmeticsStr);
-            foreach(var tmpVal in tmpPlayerIdsAndCosmetics)
+            foreach (var tmpVal in tmpPlayerIdsAndCosmetics)
             {
                 UpdateCosmeticsForPlayer(tmpVal.Key, tmpVal.Value);
             }
