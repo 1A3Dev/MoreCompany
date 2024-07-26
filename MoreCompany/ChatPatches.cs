@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using GameNetcodeStuff;
 using HarmonyLib;
 using MoreCompany.Cosmetics;
 using Newtonsoft.Json;
 using Unity.Collections;
 using Unity.Netcode;
-using UnityEngine;
 
 namespace MoreCompany
 {

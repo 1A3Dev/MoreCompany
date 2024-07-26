@@ -521,13 +521,13 @@ namespace MoreCompany
         private static void Postfix(ref GameNetworkManager __instance, ref NetworkManager.ConnectionApprovalRequest request, ref NetworkManager.ConnectionApprovalResponse response)
         {
             // LAN Crew Size Mismatch
-            if (response.Approved && __instance.disableSteam)
+            if (response.Approved && __instance.disableSteam && MainClass.newPlayerCount > 4)
             {
                 string @string = Encoding.ASCII.GetString(request.Payload);
                 string[] array = @string.Split(",");
                 if (!string.IsNullOrEmpty(@string) && (array.Length < 2 || array[1] != MainClass.newPlayerCount.ToString()))
                 {
-                    response.Reason = $"Crew size mismatch! Their size: {MainClass.newPlayerCount}. Your size: {array[1]}";
+                    response.Reason = $"Crew size mismatch! Their size: {MainClass.newPlayerCount}. Your size: {(array.Length < 2 ? 4 : array[1])}";
                     response.Approved = false;
                 }
             }
