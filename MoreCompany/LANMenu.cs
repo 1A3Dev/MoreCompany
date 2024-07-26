@@ -103,15 +103,29 @@ namespace MoreCompany
         }
     }
 
-    // Crew Size Mismatch
     [HarmonyPatch(typeof(GameNetworkManager), "SetConnectionDataBeforeConnecting")]
     public static class ConnectionDataPatch
     {
-        public static void Postfix(ref GameNetworkManager __instance)
+        public static void Prefix(ref GameNetworkManager __instance, ref int __state)
         {
+            if (!__instance.disableSteam && __instance.currentLobby.HasValue && int.TryParse(__instance.currentLobby.Value.GetData("vers"), out int lobbyVer))
+            {
+                __state = __instance.gameVersionNum;
+                __instance.gameVersionNum = lobbyVer;
+                MainClass.StaticLogger.LogInfo($"[SetConnectionDataBeforeConnecting] Temp version override from {__state} to {__instance.gameVersionNum}");
+            }
+        }
+        public static void Postfix(ref GameNetworkManager __instance, ref int __state)
+        {
+            // Crew Size Mismatch
             if (__instance.disableSteam)
             {
                 NetworkManager.Singleton.NetworkConfig.ConnectionData = Encoding.ASCII.GetBytes(__instance.gameVersionNum.ToString() + "," + MainClass.newPlayerCount);
+            }
+            else if (__instance.gameVersionNum != __state)
+            {
+                MainClass.StaticLogger.LogInfo($"[SetConnectionDataBeforeConnecting] Reverted temp version override from {__instance.gameVersionNum} to {__state}");
+                __instance.gameVersionNum = __state;
             }
         }
     }
