@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using HarmonyLib;
 using Steamworks.Data;
 using UnityEngine;
@@ -38,7 +37,7 @@ namespace MoreCompany
             }
             else if (VersionPatch.ActualGameVersion != GameNetworkManager.Instance.gameVersionNum)
             {
-                MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Reverted temp version override from {GameNetworkManager.Instance.gameVersionNum} to {VersionPatch.ActualGameVersion}");
+                MainClass.StaticLogger.LogInfo($"[Awake] Reverted temp version override from {GameNetworkManager.Instance.gameVersionNum} to {VersionPatch.ActualGameVersion}");
                 GameNetworkManager.Instance.gameVersionNum = VersionPatch.ActualGameVersion;
             }
         }
@@ -99,7 +98,8 @@ namespace MoreCompany
             }
             else
             {
-                __instance = __instance.WithKeyValue("morecompanyVersion", ActualGameVersion.ToString());
+                //__instance = __instance.WithKeyValue("morecompanyVersion", ActualGameVersion.ToString());
+                __instance = __instance.WithKeyValue("vers", (ActualGameVersion + VersionIncAmount).ToString());
             }
         }
 
