@@ -15,21 +15,11 @@ namespace MoreCompany
             foreach (LobbySlot lobbySlot in lobbySlots)
             {
                 lobbySlot.playerCount.text = string.Format("{0} / {1}", lobbySlot.thisLobby.MemberCount, lobbySlot.thisLobby.MaxMembers);
-                lobbySlot.LobbyName.text = string.Format("[v{0}] {1}", lobbySlot.thisLobby.GetData("vers"), lobbySlot.thisLobby.GetData("name"));
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(GameNetworkManager), "SubscribeToConnectionCallbacks")]
-    public static class SubscribeToConnectionCallbacksPatch
-    {
-        public static void Postfix(GameNetworkManager __instance)
-        {
-            if (__instance.currentLobby.HasValue)
-            {
-                __instance.currentLobby.Value.SetData("morecompany", "t");
-                int currentVersion = GameNetworkManager.Instance.gameVersionNum;
-                __instance.currentLobby.Value.SetData("vers", (MainClass.newPlayerCount > 4 ? currentVersion + 9950 : currentVersion).ToString());
+                string lobbyVers = lobbySlot.thisLobby.GetData("vers");
+                if (lobbyVers != GameNetworkManager.Instance.gameVersionNum.ToString())
+                {
+                    lobbySlot.LobbyName.text = string.Format("[v{0}] {1}", lobbyVers, lobbySlot.thisLobby.GetData("name"));
+                }
             }
         }
     }
@@ -46,30 +36,44 @@ namespace MoreCompany
         }
     }
 
-    [HarmonyPatch(typeof(LobbyQuery), "ApplyFilters")]
-    public static class LobbyQueryApplyFiltersPatch
+    [HarmonyPatch]
+    public static class VersionPatch
     {
-        public static void Prefix(ref LobbyQuery __instance, ref Dictionary<string, string> ___stringFilters)
+        public const int VersionIncAmount = 9950;
+
+        [HarmonyPatch(typeof(GameNetworkManager), "SubscribeToConnectionCallbacks")]
+        [HarmonyPostfix]
+        public static void SubscribeToConnectionCallbacks_Postfix(GameNetworkManager __instance)
+        {
+            if (__instance.currentLobby.HasValue)
+            {
+                __instance.currentLobby.Value.SetData("morecompany", "t");
+                int currentVersion = GameNetworkManager.Instance.gameVersionNum;
+                __instance.currentLobby.Value.SetData("vers", (MainClass.newPlayerCount > 4 ? currentVersion + VersionIncAmount : currentVersion).ToString());
+            }
+        }
+
+        [HarmonyPatch(typeof(LobbyQuery), "ApplyFilters")]
+        [HarmonyPrefix]
+        public static void ApplyFilters_Prefix(ref LobbyQuery __instance, ref Dictionary<string, string> ___stringFilters)
         {
             ___stringFilters.Remove("vers");
 
             int currentVersion = GameNetworkManager.Instance.gameVersionNum;
-            __instance = __instance.WithHigher("vers", currentVersion - 1);
-            __instance = __instance.WithLower("vers", (currentVersion + 1) + 9950);
+            //__instance = __instance.WithKeyValue("vers", (currentVersion + VersionIncAmount).ToString());
 
-            int minVersion = 38;
-            for (int i = minVersion; i < currentVersion; i++)
+            // Since steam doesn't allow the Equal comparison on the same key multiple times using an OR we have to exclude disallowed versions instead
+            __instance = __instance.WithHigher("vers", currentVersion - 1);
+            __instance = __instance.WithLower("vers", (currentVersion + 1) + VersionIncAmount);
+            for (int i = currentVersion + 1; i < currentVersion + VersionIncAmount; i++)
             {
                 __instance = __instance.WithNotEqual("vers", i);
-                __instance = __instance.WithNotEqual("vers", i + 9950);
             }
         }
-    }
 
-    [HarmonyPatch(typeof(GameNetworkManager), "LobbyDataIsJoinable")]
-    public static class LobbyDataIsJoinablePatch
-    {
-        public static void Prefix(ref GameNetworkManager __instance, ref int __state, ref Lobby lobby)
+        [HarmonyPatch(typeof(GameNetworkManager), "LobbyDataIsJoinable")]
+        [HarmonyPrefix]
+        public static void LobbyDataIsJoinable_Prefix(ref GameNetworkManager __instance, ref int __state, ref Lobby lobby)
         {
             if (int.TryParse(lobby.GetData("vers"), out int lobbyVer))
             {
@@ -78,7 +82,10 @@ namespace MoreCompany
                 MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Temp version override from {__state} to {__instance.gameVersionNum}");
             }
         }
-        public static void Postfix(ref GameNetworkManager __instance, ref int __state)
+
+        [HarmonyPatch(typeof(GameNetworkManager), "LobbyDataIsJoinable")]
+        [HarmonyPostfix]
+        public static void LobbyDataIsJoinable_Postfix(ref GameNetworkManager __instance, ref int __state)
         {
             MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Reverted temp version override from {__instance.gameVersionNum} to {__state}");
             __instance.gameVersionNum = __state;
