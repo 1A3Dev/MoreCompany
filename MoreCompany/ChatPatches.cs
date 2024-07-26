@@ -5,6 +5,7 @@ using System.Reflection;
 using GameNetcodeStuff;
 using HarmonyLib;
 using MoreCompany.Cosmetics;
+using Newtonsoft.Json;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -28,7 +29,7 @@ namespace MoreCompany
     }
 
     [HarmonyPatch]
-    public static class ClientReceiveMessagePatch
+    public static class CosmeticSyncPatch
     {
         // This method runs whenever a player's cosmetics are updated
         public static void UpdateCosmeticsForPlayer(int playerClientId, List<string> splitMessage, bool showOwnCosmetics = false)
@@ -100,8 +101,7 @@ namespace MoreCompany
                 // Sync cosmetics of all clients back to the newly joined client
                 if (senderId != NetworkManager.ServerClientId && requestAll)
                 {
-                    string allCosmeticsStr = JsonUtility.ToJson(MainClass.playerIdsAndCosmetics);
-                    MainClass.StaticLogger.LogInfo(allCosmeticsStr);
+                    string allCosmeticsStr = JsonConvert.SerializeObject(MainClass.playerIdsAndCosmetics);
                     int writeSizeAll = FastBufferWriter.GetWriteSize(allCosmeticsStr);
                     var writerAll = new FastBufferWriter(writeSizeAll, Allocator.Temp);
                     using (writerAll)
@@ -115,16 +115,13 @@ namespace MoreCompany
 
         public static void CL_ReceiveAllCosmetics(ulong senderId, FastBufferReader messagePayload)
         {
-            if (!NetworkManager.Singleton.IsServer)
+            messagePayload.ReadValueSafe(out string cosmeticsStr);
+            Dictionary<int, List<string>> tmpPlayerIdsAndCosmetics = JsonConvert.DeserializeObject<Dictionary<int, List<string>>>(cosmeticsStr);
+            foreach(var tmpVal in tmpPlayerIdsAndCosmetics)
             {
-                messagePayload.ReadValueSafe(out string cosmeticsStr);
-                Dictionary<int, List<string>> tmpPlayerIdsAndCosmetics = JsonUtility.FromJson<Dictionary<int, List<string>>>(cosmeticsStr);
-                foreach(var tmpVal in tmpPlayerIdsAndCosmetics)
-                {
-                    UpdateCosmeticsForPlayer(tmpVal.Key, tmpVal.Value);
-                }
-                MainClass.StaticLogger.LogInfo($"Client received {tmpPlayerIdsAndCosmetics.Sum(x => x.Value.Count)} cosmetics from {tmpPlayerIdsAndCosmetics.Keys.Count} players");
+                UpdateCosmeticsForPlayer(tmpVal.Key, tmpVal.Value);
             }
+            MainClass.StaticLogger.LogInfo($"Client received {tmpPlayerIdsAndCosmetics.Sum(x => x.Value.Count)} cosmetics from {tmpPlayerIdsAndCosmetics.Keys.Count} players");
         }
 
         public static void CL_ReceiveCosmetics(ulong senderId, FastBufferReader messagePayload)
@@ -142,21 +139,14 @@ namespace MoreCompany
         public static void SyncCosmeticsToOtherClients(PlayerControllerB playerController, bool requestAll = false)
         {
             string cosmeticsStr = string.Join(',', CosmeticRegistry.locallySelectedCosmetics);
-            int writeSize = FastBufferWriter.GetWriteSize(playerController.playerClientId) + FastBufferWriter.GetWriteSize(cosmeticsStr);
+            int writeSize = FastBufferWriter.GetWriteSize(playerController.playerClientId) + FastBufferWriter.GetWriteSize(cosmeticsStr) + FastBufferWriter.GetWriteSize(requestAll);
             var writer = new FastBufferWriter(writeSize, Allocator.Temp);
             using (writer)
             {
                 writer.WriteValueSafe(playerController.playerClientId);
                 writer.WriteValueSafe(cosmeticsStr);
                 writer.WriteValueSafe(requestAll);
-                if (NetworkManager.Singleton.IsServer)
-                {
-                    NetworkManager.Singleton.CustomMessagingManager.SendNamedMessageToAll("MC_CL_ReceiveCosmetics", writer, NetworkDelivery.Reliable);
-                }
-                else
-                {
-                    NetworkManager.Singleton.CustomMessagingManager.SendNamedMessage("MC_SV_SyncCosmetics", NetworkManager.ServerClientId, writer, NetworkDelivery.Reliable);
-                }
+                NetworkManager.Singleton.CustomMessagingManager.SendNamedMessage("MC_SV_SyncCosmetics", NetworkManager.ServerClientId, writer, NetworkDelivery.Reliable);
             }
         }
 
@@ -166,13 +156,13 @@ namespace MoreCompany
         {
             MainClass.playerIdsAndCosmetics.Clear();
 
-            NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler("MC_CL_ReceiveCosmetics", CL_ReceiveCosmetics);
             if (NetworkManager.Singleton.IsServer)
             {
                 NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler("MC_SV_SyncCosmetics", SV_ReceiveCosmetics);
             }
             else
             {
+                NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler("MC_CL_ReceiveCosmetics", CL_ReceiveCosmetics);
                 NetworkManager.Singleton.CustomMessagingManager.RegisterNamedMessageHandler("MC_CL_ReceiveAllCosmetics", CL_ReceiveAllCosmetics);
             }
 
