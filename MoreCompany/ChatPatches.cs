@@ -30,14 +30,15 @@ namespace MoreCompany
     [HarmonyPatch]
     public static class ClientReceiveMessagePatch
     {
-        public static void UpdateCosmeticsForPlayer(int senderId, List<string> splitMessage, bool showOwnCosmetics = false)
+        // This method runs whenever a player's cosmetics are updated
+        public static void UpdateCosmeticsForPlayer(int playerClientId, List<string> splitMessage, bool showOwnCosmetics = false)
         {
-            CosmeticApplication cosmeticApplication = StartOfRound.Instance.allPlayerScripts[senderId].transform.Find("ScavengerModel")
+            CosmeticApplication cosmeticApplication = StartOfRound.Instance.allPlayerScripts[playerClientId].transform.Find("ScavengerModel")
                 .Find("metarig").gameObject.GetComponent<CosmeticApplication>();
 
             if (!cosmeticApplication)
             {
-                cosmeticApplication = StartOfRound.Instance.allPlayerScripts[senderId].transform.Find("ScavengerModel")
+                cosmeticApplication = StartOfRound.Instance.allPlayerScripts[playerClientId].transform.Find("ScavengerModel")
                 .Find("metarig").gameObject.AddComponent<CosmeticApplication>();
             }
 
@@ -54,7 +55,7 @@ namespace MoreCompany
                 }
             }
 
-            if (senderId == StartOfRound.Instance.thisClientPlayerId && !showOwnCosmetics)
+            if (playerClientId == StartOfRound.Instance.thisClientPlayerId && !showOwnCosmetics)
             {
                 cosmeticApplication.ClearCosmetics();
             }
@@ -64,13 +65,13 @@ namespace MoreCompany
                 cosmeticSpawned.transform.localScale *= CosmeticRegistry.COSMETIC_PLAYER_SCALE_MULT;
             }
 
-            if (MainClass.playerIdsAndCosmetics.ContainsKey(senderId))
+            if (MainClass.playerIdsAndCosmetics.ContainsKey(playerClientId))
             {
-                MainClass.playerIdsAndCosmetics[senderId] = cosmeticsToApply;
+                MainClass.playerIdsAndCosmetics[playerClientId] = cosmeticsToApply;
             }
             else
             {
-                MainClass.playerIdsAndCosmetics.Add(senderId, cosmeticsToApply);
+                MainClass.playerIdsAndCosmetics.Add(playerClientId, cosmeticsToApply);
             }
         }
 
