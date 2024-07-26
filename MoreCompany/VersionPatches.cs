@@ -28,9 +28,23 @@ namespace MoreCompany
     [HarmonyPatch(typeof(MenuManager), "Awake")]
     public static class MenuManagerVersionDisplayPatch
     {
+        public static void Prefix()
+        {
+            if (GameNetworkManager.Instance == null) return;
+
+            if (VersionPatch.ActualGameVersion == 0)
+            {
+                VersionPatch.ActualGameVersion = GameNetworkManager.Instance.gameVersionNum;
+            }
+            else if (VersionPatch.ActualGameVersion != GameNetworkManager.Instance.gameVersionNum)
+            {
+                MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Reverted temp version override from {GameNetworkManager.Instance.gameVersionNum} to {VersionPatch.ActualGameVersion}");
+                GameNetworkManager.Instance.gameVersionNum = VersionPatch.ActualGameVersion;
+            }
+        }
         public static void Postfix(MenuManager __instance)
         {
-            if (GameNetworkManager.Instance != null && __instance.versionNumberText != null)
+            if (__instance.versionNumberText != null)
             {
                 __instance.versionNumberText.text = string.Format("{0} (MC)", __instance.versionNumberText.text);
             }
@@ -40,17 +54,30 @@ namespace MoreCompany
     [HarmonyPatch]
     public static class VersionPatch
     {
+        public static int ActualGameVersion = 0;
         public const int VersionIncAmount = 9950;
 
-        [HarmonyPatch(typeof(GameNetworkManager), "SubscribeToConnectionCallbacks")]
-        [HarmonyPostfix]
-        public static void SubscribeToConnectionCallbacks_Postfix(GameNetworkManager __instance)
+        [HarmonyPatch(typeof(GameNetworkManager), "SteamMatchmaking_OnLobbyCreated")]
+        [HarmonyPrefix]
+        public static void SteamMatchmaking_OnLobbyCreated(GameNetworkManager __instance, Steamworks.Result result, ref Lobby lobby)
         {
-            if (__instance.currentLobby.HasValue)
+            int newVersionNumber = (MainClass.newPlayerCount > 4 ? ActualGameVersion + VersionIncAmount : ActualGameVersion);
+            if (__instance.gameVersionNum != newVersionNumber)
             {
-                __instance.currentLobby.Value.SetData("morecompany", "t");
-                int currentVersion = GameNetworkManager.Instance.gameVersionNum;
-                __instance.currentLobby.Value.SetData("vers", (MainClass.newPlayerCount > 4 ? currentVersion + VersionIncAmount : currentVersion).ToString());
+                MainClass.StaticLogger.LogInfo($"[SteamMatchmaking_OnLobbyCreated] Version override from {__instance.gameVersionNum} to {newVersionNumber}");
+                __instance.gameVersionNum = newVersionNumber;
+            }
+            lobby.SetData("morecompany", "t");
+        }
+
+        [HarmonyPatch(typeof(GameNetworkManager), "SetInstanceValuesBackToDefault")]
+        [HarmonyPostfix]
+        public static void SetInstanceValuesBackToDefault_Postfix(GameNetworkManager __instance)
+        {
+            if (__instance.gameVersionNum != ActualGameVersion)
+            {
+                MainClass.StaticLogger.LogInfo($"[SetInstanceValuesBackToDefault] Reverted version override from {__instance.gameVersionNum} to {ActualGameVersion}");
+                __instance.gameVersionNum = ActualGameVersion;
             }
         }
 
@@ -60,41 +87,42 @@ namespace MoreCompany
         {
             ___stringFilters.Remove("vers");
 
-            int currentVersion = GameNetworkManager.Instance.gameVersionNum;
             if (MainClass.showVanillaLobbies.Value)
             {
                 // Since steam doesn't allow the Equal comparison on the same key multiple times using an OR we have to exclude disallowed versions instead
-                __instance = __instance.WithHigher("vers", currentVersion - 1);
-                __instance = __instance.WithLower("vers", (currentVersion + 1) + VersionIncAmount);
-                for (int i = currentVersion + 1; i < currentVersion + VersionIncAmount; i++)
+                __instance = __instance.WithHigher("vers", ActualGameVersion - 1);
+                __instance = __instance.WithLower("vers", (ActualGameVersion + 1) + VersionIncAmount);
+                for (int i = ActualGameVersion + 1; i < ActualGameVersion + VersionIncAmount; i++)
                 {
                     __instance = __instance.WithNotEqual("vers", i);
                 }
             }
             else
             {
-                __instance = __instance.WithKeyValue("vers", (currentVersion + VersionIncAmount).ToString());
+                __instance = __instance.WithKeyValue("vers", (ActualGameVersion + VersionIncAmount).ToString());
             }
         }
 
         [HarmonyPatch(typeof(GameNetworkManager), "LobbyDataIsJoinable")]
         [HarmonyPrefix]
-        public static void LobbyDataIsJoinable_Prefix(ref GameNetworkManager __instance, ref int __state, ref Lobby lobby)
+        public static void LobbyDataIsJoinable_Prefix(GameNetworkManager __instance, ref Lobby lobby)
         {
-            if (int.TryParse(lobby.GetData("vers"), out int lobbyVer))
+            if (int.TryParse(lobby.GetData("vers"), out int lobbyVer) && __instance.gameVersionNum != lobbyVer)
             {
-                __state = __instance.gameVersionNum;
+                MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Temp version override from {__instance.gameVersionNum} to {lobbyVer}");
                 __instance.gameVersionNum = lobbyVer;
-                MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Temp version override from {__state} to {__instance.gameVersionNum}");
             }
         }
 
         [HarmonyPatch(typeof(GameNetworkManager), "LobbyDataIsJoinable")]
         [HarmonyPostfix]
-        public static void LobbyDataIsJoinable_Postfix(ref GameNetworkManager __instance, ref int __state)
+        public static void LobbyDataIsJoinable_Postfix(GameNetworkManager __instance)
         {
-            MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Reverted temp version override from {__instance.gameVersionNum} to {__state}");
-            __instance.gameVersionNum = __state;
+            if (__instance.gameVersionNum != ActualGameVersion)
+            {
+                MainClass.StaticLogger.LogInfo($"[LobbyDataIsJoinable] Reverted temp version override from {__instance.gameVersionNum} to {ActualGameVersion}");
+                __instance.gameVersionNum = ActualGameVersion;
+            }
         }
     }
 }
