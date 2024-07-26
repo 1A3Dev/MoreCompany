@@ -178,7 +178,7 @@ namespace MoreCompany
                 NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler("MC_CL_ReceiveCosmetics");
                 NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler("MC_CL_ReceiveAllCosmetics");
                 NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler("MC_SV_SyncCosmetics");
-                MainClass.StaticLogger.LogInfo("UnregisterNamedMessageHandler");
+                MainClass.StaticLogger.LogInfo("Unregistered Named Message Handlers");
             }
         }
     }
