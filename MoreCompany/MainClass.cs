@@ -1,16 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using GameNetcodeStuff;
 using HarmonyLib;
-using MoreCompany.Cosmetics;
-using MoreCompany.Utils;
 using Steamworks;
 using Unity.Netcode;
 using UnityEngine;
@@ -27,7 +21,7 @@ namespace MoreCompany
     [BepInPlugin(PluginInformation.PLUGIN_GUID, PluginInformation.PLUGIN_NAME, PluginInformation.PLUGIN_VERSION)]
     public class MainClass : BaseUnityPlugin
     {
-        public static int defaultPlayerCount = 32;
+        public static int defaultPlayerCount = 100;
         public static int minPlayerCount = 4;
         public static int maxPlayerCount = 50;
         public static int newPlayerCount = 32;
@@ -41,21 +35,7 @@ namespace MoreCompany
         public static ConfigEntry<bool> cosmeticsPerProfile;
         public static ConfigEntry<string> disabledCosmetics;
 
-        public static Texture2D mainLogo;
-        public static GameObject quickMenuScrollParent;
-
-        public static GameObject playerEntry;
-        public static GameObject crewCountUI;
-
-        public static GameObject cosmeticGUIInstance;
-        public static GameObject cosmeticButton;
-
         public static ManualLogSource StaticLogger;
-
-        public static Dictionary<int, List<string>> playerIdsAndCosmetics = new Dictionary<int, List<string>>();
-
-        public static string dynamicCosmeticsPath;
-        public static string cosmeticSavePath;
 
         private void Awake()
         {
@@ -69,39 +49,6 @@ namespace MoreCompany
             defaultCosmetics = StaticConfig.Bind("Cosmetics", "Default Cosmetics", true, "Should the default cosmetics be enabled?");
             cosmeticsPerProfile = StaticConfig.Bind("Cosmetics", "Per Profile Cosmetics", false, "Should the cosmetics be saved per-profile?");
             disabledCosmetics = StaticConfig.Bind("Cosmetics", "Disabled Cosmetics", "", "Comma separated list of cosmetics to disable");
-
-            cosmeticsSyncOther.SettingChanged += (sender, args) => {
-                foreach (PlayerControllerB playerController in FindObjectsOfType<PlayerControllerB>())
-                {
-                    Transform cosmeticRoot = playerController.transform.Find("ScavengerModel").Find("metarig");
-                    if (cosmeticRoot == null) continue;
-                    CosmeticApplication cosmeticApplication = cosmeticRoot.gameObject.GetComponent<CosmeticApplication>();
-                    if (cosmeticApplication == null) continue;
-
-                    foreach (var spawnedCosmetic in cosmeticApplication.spawnedCosmetics)
-                    {
-                        if (spawnedCosmetic.cosmeticType == CosmeticType.HAT && cosmeticApplication.detachedHead) continue;
-                        spawnedCosmetic.gameObject.SetActive(cosmeticsSyncOther.Value);
-                    }
-                }
-            };
-
-            cosmeticsDeadBodies.SettingChanged += (sender, args) => {
-                foreach (PlayerControllerB playerController in FindObjectsOfType<PlayerControllerB>())
-                {
-                    Transform cosmeticRoot = playerController.DeadPlayerRagdoll.transform;
-                    if (cosmeticRoot == null) continue;
-                    CosmeticApplication cosmeticApplication = cosmeticRoot.GetComponent<CosmeticApplication>();
-                    if (cosmeticApplication == null) continue;
-
-                    foreach (var spawnedCosmetic in cosmeticApplication.spawnedCosmetics)
-                    {
-                        if (spawnedCosmetic.cosmeticType == CosmeticType.HAT && cosmeticApplication.detachedHead) continue;
-                        spawnedCosmetic.gameObject.SetActive(cosmeticsDeadBodies.Value);
-                    }
-                }
-            };
-
 
             Harmony harmony = new Harmony(PluginInformation.PLUGIN_GUID);
             try
@@ -125,128 +72,7 @@ namespace MoreCompany
                 newPlayerCount = lobby.MaxMembers;
             };
 
-            StaticLogger.LogInfo("Loading SETTINGS...");
-            //ReadSettingsFromFile();
-
-            dynamicCosmeticsPath = Paths.PluginPath + "/MoreCompanyCosmetics";
-
-            if (cosmeticsPerProfile.Value)
-            {
-                cosmeticSavePath = $"{Application.persistentDataPath}/morecompanycosmetics-{Directory.GetParent(Paths.BepInExRootPath).Name}.txt";
-            }
-            else
-            {
-                cosmeticSavePath = $"{Application.persistentDataPath}/morecompanycosmetics.txt";
-            }
-            cosmeticsPerProfile.SettingChanged += (sender, args) => {
-                if (cosmeticsPerProfile.Value)
-                {
-                    cosmeticSavePath = $"{Application.persistentDataPath}/MCCosmeticsSave-{Directory.GetParent(Paths.BepInExRootPath).Name}.mcs";
-                }
-                else
-                {
-                    cosmeticSavePath = $"{Application.persistentDataPath}/MCCosmeticsSave.mcs";
-                }
-            };
-
-            StaticLogger.LogInfo("Checking: " + dynamicCosmeticsPath);
-            if (!Directory.Exists(dynamicCosmeticsPath))
-            {
-                StaticLogger.LogInfo("Creating cosmetics directory");
-                Directory.CreateDirectory(dynamicCosmeticsPath);
-            }
-            StaticLogger.LogInfo("Loading COSMETICS...");
-            ReadCosmeticsFromFile();
-
-            //if (defaultCosmetics.Value)
-            //{
-            //    StaticLogger.LogInfo("Loading DEFAULT COSMETICS...");
-            //    AssetBundle cosmeticsBundle = BundleUtilities.LoadBundleFromInternalAssembly("morecompany.cosmetics", Assembly.GetExecutingAssembly());
-            //    CosmeticRegistry.LoadCosmeticsFromBundle(cosmeticsBundle, "morecompany.cosmetics");
-            //    cosmeticsBundle.Unload(false);
-            //}
-
-            //StaticLogger.LogInfo("Loading USER COSMETICS...");
-            //RecursiveCosmeticLoad(Paths.PluginPath);
-
-            AssetBundle bundle = BundleUtilities.LoadBundleFromInternalAssembly("morecompany.assets", Assembly.GetExecutingAssembly());
-            LoadAssets(bundle);
-
             StaticLogger.LogInfo("Loaded MoreCompany FULLY");
-        }
-
-        private void RecursiveCosmeticLoad(string directory)
-        {
-            foreach (var subDirectory in Directory.GetDirectories(directory))
-            {
-                RecursiveCosmeticLoad(subDirectory);
-            }
-
-            foreach (var file in Directory.GetFiles(directory))
-            {
-                if (file.EndsWith(".cosmetics"))
-                {
-                    AssetBundle bundle = AssetBundle.LoadFromFile(file);
-                    CosmeticRegistry.LoadCosmeticsFromBundle(bundle, file);
-                    bundle.Unload(false);
-                }
-            }
-        }
-
-        private void ReadCosmeticsFromFile()
-        {
-            if (System.IO.File.Exists(cosmeticSavePath))
-            {
-                string[] lines = System.IO.File.ReadAllLines(cosmeticSavePath);
-                foreach (var line in lines)
-                {
-                    CosmeticRegistry.locallySelectedCosmetics.Add(line);
-                }
-            }
-        }
-
-        public static void WriteCosmeticsToFile()
-        {
-            string built = "";
-            foreach (var cosmetic in CosmeticRegistry.locallySelectedCosmetics)
-            {
-                built += cosmetic + "\n";
-            }
-            System.IO.File.WriteAllText(cosmeticSavePath, built);
-        }
-
-        public static void SaveSettingsToFile()
-        {
-            playerCount.Value = newPlayerCount;
-            StaticConfig.Save();
-        }
-
-        public static void ReadSettingsFromFile()
-        {
-            try
-            {
-                newPlayerCount = Mathf.Clamp(playerCount.Value, minPlayerCount, maxPlayerCount);
-            }
-            catch
-            {
-                newPlayerCount = defaultPlayerCount;
-                playerCount.Value = newPlayerCount;
-                StaticConfig.Save();
-            }
-        }
-
-        private static void LoadAssets(AssetBundle bundle)
-        {
-            if (bundle)
-            {
-                mainLogo = bundle.LoadPersistentAsset<Texture2D>("assets/morecompanyassets/morecompanytransparentred.png");
-                quickMenuScrollParent = bundle.LoadPersistentAsset<GameObject>("assets/morecompanyassets/quickmenuoverride.prefab");
-                playerEntry = bundle.LoadPersistentAsset<GameObject>("assets/morecompanyassets/playerlistslot.prefab");
-                cosmeticGUIInstance = bundle.LoadPersistentAsset<GameObject>("assets/morecompanyassets/testoverlay.prefab");
-                cosmeticButton = bundle.LoadPersistentAsset<GameObject>("assets/morecompanyassets/cosmeticinstance.prefab");
-                crewCountUI = bundle.LoadPersistentAsset<GameObject>("assets/morecompanyassets/crewcountfield.prefab");
-                bundle.Unload(false);
-            }
         }
 
         public static void ResizePlayerCache(Dictionary<uint, Dictionary<int, NetworkObject>> ScenePlacedObjects)
@@ -263,20 +89,16 @@ namespace MoreCompany
 
                 Array.Resize(ref round.allPlayerObjects, newPlayerCount);
                 Array.Resize(ref round.allPlayerScripts, newPlayerCount);
-                //Array.Resize(ref round.gameStats.allPlayerStats, newPlayerCount);
                 Array.Resize(ref round.playerSpawnPositions, newPlayerCount);
 
                 StaticLogger.LogInfo($"Resizing player cache from {originalLength} to {newPlayerCount} with difference of {difference}");
 
                 if (difference > 0)
                 {
-                    //GameObject playerPrefab = round.playerPrefab;
-                    //GameObject firstPlayerObject = round.allPlayerObjects[0];
                     GameObject firstPlayerObject = round.allPlayerObjects[3];
                     for (int i = 0; i < difference; i++)
                     {
                         uint newId = starting + (uint)i;
-                        //GameObject copy = GameObject.Instantiate(playerPrefab, firstPlayerObject.transform.parent);
                         GameObject copy = GameObject.Instantiate(firstPlayerObject, firstPlayerObject.transform.parent);
                         NetworkObject copyNetworkObject = copy.GetComponent<NetworkObject>();
                         ReflectionUtils.SetFieldValue(copyNetworkObject, "GlobalObjectIdHash", (uint) newId);
@@ -306,7 +128,6 @@ namespace MoreCompany
 
                         // Set new player object
                         round.allPlayerObjects[originalLength + i] = copy;
-                        //round.gameStats.allPlayerStats[originalLength + i] = new PlayerStats();
                         round.allPlayerScripts[originalLength + i] = newPlayerScript;
                         round.playerSpawnPositions[originalLength + i] = round.playerSpawnPositions[3];
                     }
@@ -334,7 +155,7 @@ namespace MoreCompany
     {
         public static void Prefix(ref int maxMembers)
         {
-            //MainClass.ReadSettingsFromFile();
+            MainClass.newPlayerCount = MainClass.defaultPlayerCount;
             maxMembers = MainClass.newPlayerCount;
         }
     }

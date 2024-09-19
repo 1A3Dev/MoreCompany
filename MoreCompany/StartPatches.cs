@@ -15,15 +15,12 @@ namespace MoreCompany
         }
     }
 
-    [HarmonyPatch(typeof(StartOfRound), "OnPlayerDisconnectedClientRpc")]
-    public static class OnPlayerDCPatch
+    [HarmonyPatch(typeof(StartOfRound), "Start")]
+    public static class StartPatch
     {
-        public static void Postfix(int playerObjectNumber)
+        public static void Postfix(StartOfRound __instance)
         {
-            if (MainClass.playerIdsAndCosmetics.ContainsKey(playerObjectNumber))
-            {
-                MainClass.playerIdsAndCosmetics.Remove(playerObjectNumber);
-            }
+            __instance.livingPlayers = MainClass.newPlayerCount;
         }
     }
 }

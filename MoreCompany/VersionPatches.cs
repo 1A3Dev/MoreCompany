@@ -1,8 +1,6 @@
 using HarmonyLib;
 using Steamworks.Data;
-using System.Collections;
 using Unity.Netcode;
-using UnityEngine;
 
 namespace MoreCompany
 {
@@ -15,16 +13,12 @@ namespace MoreCompany
         }
     }
 
-    [HarmonyPatch(typeof(SteamLobbyManager), "LoadServerList")]
+    [HarmonyPatch(typeof(LobbySlot), "Update")]
     public static class LoadLobbyListAndFilterPatch
     {
-        public static void Postfix()
+        public static void Postfix(LobbySlot __instance)
         {
-            LobbySlot[] lobbySlots = Object.FindObjectsOfType<LobbySlot>();
-            foreach (LobbySlot lobbySlot in lobbySlots)
-            {
-                lobbySlot.playerCount.text = string.Format("{0} / {1}", lobbySlot.thisLobby.MemberCount, lobbySlot.thisLobby.MaxMembers);
-            }
+            __instance.playerCount.text = string.Format("{0} / {1}", __instance.thisLobby.MemberCount, __instance.thisLobby.MaxMembers);
         }
     }
 }
