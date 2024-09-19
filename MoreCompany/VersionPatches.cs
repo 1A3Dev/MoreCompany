@@ -1,46 +1,25 @@
 using HarmonyLib;
+using Steamworks.Data;
 using System.Collections;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace MoreCompany
 {
-    [HarmonyPatch(typeof(GameNetworkManager), "Awake")]
-    public static class GameNetworkAwakePatch
+    [HarmonyPatch(typeof(LobbyQuery), "RequestAsync")]
+    public static class RequestAsyncPatch
     {
-        public static int originalVersion = 0;
-
-        public static void Postfix(GameNetworkManager __instance)
+        public static void Prefix(ref LobbyQuery __instance)
         {
-            originalVersion = __instance.gameVersionNum;
-
-            // LC_API compatibility.
-            if (!BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("LC_API"))
-            {
-	            __instance.gameVersionNum = 9950 + originalVersion;
-            }
+            __instance.WithKeyValue("serverVersion", NetworkManager.Singleton.NetworkConfig.ProtocolVersion.ToString());
         }
     }
 
-    [HarmonyPatch(typeof(MenuManager), "Awake")]
-    public static class MenuManagerVersionDisplayPatch
-    {
-        public static void Postfix(MenuManager __instance)
-        {
-            if (GameNetworkManager.Instance != null && __instance.versionNumberText != null)
-            {
-                __instance.versionNumberText.text = string.Format("v{0} (MC)", GameNetworkAwakePatch.originalVersion);
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(SteamLobbyManager), "loadLobbyListAndFilter")]
+    [HarmonyPatch(typeof(SteamLobbyManager), "LoadServerList")]
     public static class LoadLobbyListAndFilterPatch
     {
-        public static IEnumerator Postfix(IEnumerator result)
+        public static void Postfix()
         {
-            while (result.MoveNext())
-                yield return result.Current;
-
             LobbySlot[] lobbySlots = Object.FindObjectsOfType<LobbySlot>();
             foreach (LobbySlot lobbySlot in lobbySlots)
             {

@@ -241,7 +241,8 @@ namespace MoreCompany.Cosmetics
                 locallySelectedCosmetics.Add(cosmeticId);
             }
 
-            if (StartOfRound.Instance != null && StartOfRound.Instance.localPlayerController != null)
+            StartOfRound startOfRound = UnityEngine.Object.FindObjectOfType<StartOfRound>();
+            if (startOfRound != null && startOfRound.localPlayerController != null)
             {
                 CosmeticSyncPatch.SyncCosmeticsToOtherClients();
             }

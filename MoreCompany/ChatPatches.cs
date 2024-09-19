@@ -10,34 +10,35 @@ using Unity.Netcode;
 
 namespace MoreCompany
 {
-    [HarmonyPatch(typeof(HUDManager), "AddTextToChatOnServer")]
-    public static class SendChatToServerPatch
-    {
-        public static bool Prefix(string chatMessage, int playerId = -1)
-        {
-            if (DebugCommandRegistry.commandEnabled && StartOfRound.Instance.IsHost && chatMessage.StartsWith("/mc"))
-            {
-                String command = chatMessage.Replace("/mc ", "");
-                DebugCommandRegistry.HandleCommand(command.Split(' '));
-                return false;
-            }
-
-            return true;
-        }
-    }
-
     [HarmonyPatch]
     public static class CosmeticSyncPatch
     {
+        [HarmonyPatch(typeof(HUDManager), "AddTextToChatOnServer")]
+        public static class SendChatToServerPatch
+        {
+            public static bool Prefix(string chatMessage, int playerId = -1)
+            {
+                if (DebugCommandRegistry.commandEnabled && NetworkManager.Singleton.IsHost && chatMessage.StartsWith("/mc"))
+                {
+                    String command = chatMessage.Replace("/mc ", "");
+                    DebugCommandRegistry.HandleCommand(command.Split(' '));
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
         // This method runs whenever a player's cosmetics are updated
         public static void UpdateCosmeticsForPlayer(int playerClientId, List<string> splitMessage, bool showOwnCosmetics = false)
         {
-            CosmeticApplication cosmeticApplication = StartOfRound.Instance.allPlayerScripts[playerClientId].transform.Find("ScavengerModel")
+            StartOfRound startOfRound = UnityEngine.Object.FindObjectOfType<StartOfRound>();
+            CosmeticApplication cosmeticApplication = startOfRound.allPlayerScripts[playerClientId].transform.Find("ScavengerModel")
                 .Find("metarig").gameObject.GetComponent<CosmeticApplication>();
 
             if (!cosmeticApplication)
             {
-                cosmeticApplication = StartOfRound.Instance.allPlayerScripts[playerClientId].transform.Find("ScavengerModel")
+                cosmeticApplication = startOfRound.allPlayerScripts[playerClientId].transform.Find("ScavengerModel")
                 .Find("metarig").gameObject.AddComponent<CosmeticApplication>();
             }
 
@@ -50,7 +51,7 @@ namespace MoreCompany
                 cosmeticApplication.ApplyCosmetic(cosmeticId, MainClass.cosmeticsSyncOther.Value);
             }
 
-            if (playerClientId == StartOfRound.Instance.thisClientPlayerId && !showOwnCosmetics)
+            if (playerClientId == startOfRound.thisClientPlayerId && !showOwnCosmetics)
             {
                 cosmeticApplication.ClearCosmetics();
             }
@@ -93,7 +94,7 @@ namespace MoreCompany
                 }
 
                 // Sync cosmetics of all clients back to the newly joined client
-                if (senderId != NetworkManager.ServerClientId && requestAll)
+                if (senderId != NetworkManager.Singleton.ServerClientId && requestAll)
                 {
                     string allCosmeticsStr = JsonConvert.SerializeObject(MainClass.playerIdsAndCosmetics);
                     int writeSizeAll = FastBufferWriter.GetWriteSize(allCosmeticsStr);
@@ -132,7 +133,8 @@ namespace MoreCompany
 
         public static void SyncCosmeticsToOtherClients(PlayerControllerB playerControllerTmp = null, bool disabled = false, bool requestAll = false)
         {
-            PlayerControllerB playerController = playerControllerTmp ?? StartOfRound.Instance?.localPlayerController;
+            StartOfRound startOfRound = UnityEngine.Object.FindObjectOfType<StartOfRound>();
+            PlayerControllerB playerController = playerControllerTmp ?? startOfRound?.localPlayerController;
             if (playerController != null)
             {
                 string cosmeticsStr = disabled ? "" : string.Join(',', CosmeticRegistry.GetCosmeticsToSync());
@@ -143,12 +145,12 @@ namespace MoreCompany
                     writer.WriteValueSafe(playerController.playerClientId);
                     writer.WriteValueSafe(cosmeticsStr);
                     writer.WriteValueSafe(requestAll);
-                    NetworkManager.Singleton.CustomMessagingManager.SendNamedMessage("MC_SV_SyncCosmetics", NetworkManager.ServerClientId, writer, NetworkDelivery.Reliable);
+                    NetworkManager.Singleton.CustomMessagingManager.SendNamedMessage("MC_SV_SyncCosmetics", NetworkManager.Singleton.ServerClientId, writer, NetworkDelivery.Reliable);
                 }
             }
         }
 
-        [HarmonyPatch(typeof(PlayerControllerB), "ConnectClientToPlayerObject")]
+        [HarmonyPatch(typeof(PlayerControllerB), "SpawnPlayerAnimation")]
         [HarmonyPostfix]
         public static void ConnectClientToPlayerObject(PlayerControllerB __instance)
         {

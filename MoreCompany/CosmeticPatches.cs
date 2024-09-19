@@ -40,29 +40,17 @@ namespace MoreCompany
             return false;
         }
 
-        [HarmonyPatch(typeof(PlayerControllerB), "SpawnDeadBody")]
+        [HarmonyPatch(typeof(PlayerControllerB), "DisablePlayerModel")]
         [HarmonyPostfix]
-        public static void SpawnDeadBody(ref PlayerControllerB __instance, int deathAnimation = 0)
+        public static void SpawnDeadBody(PlayerControllerB __instance, bool enable = false)
         {
-            Transform cosmeticRoot = __instance.deadBody.transform;
-            if (cosmeticRoot == null) return;
-            bool detachedHead = __instance.deadBody.detachedHead;
-            if (deathAnimation == 4 || deathAnimation == 5) detachedHead = true; // Masked
-            CloneCosmeticsToNonPlayer(cosmeticRoot, (int)__instance.playerClientId, detachedHead: detachedHead, startEnabled: MainClass.cosmeticsDeadBodies.Value);
-        }
-
-        // "Why this function? Why not Start/Awake/Another function?" Well, Start and Awake are called on clients that arent the host before the mimicking player is set.
-        // And the other functions are called before the mimicking player is set... sometimes. This is the only function that gets called after the mimicking player is set on the client and host consistently.
-        [HarmonyPatch(typeof(MaskedPlayerEnemy), "SetEnemyOutside")]
-        [HarmonyPostfix]
-        public static void SetEnemyOutside(MaskedPlayerEnemy __instance)
-        {
-            if (__instance.mimickingPlayer == null) return;
-            Transform cosmeticRoot = __instance.transform.Find("ScavengerModel").Find("metarig");
-            if (cosmeticRoot == null) return;
-            CloneCosmeticsToNonPlayer(cosmeticRoot, (int)__instance.mimickingPlayer.playerClientId, detachedHead: false, startEnabled: MainClass.cosmeticsMaskedEnemy.Value);
-            __instance.skinnedMeshRenderers = __instance.gameObject.GetComponentsInChildren<SkinnedMeshRenderer>();
-            __instance.meshRenderers = __instance.gameObject.GetComponentsInChildren<MeshRenderer>();
+            if (!enable)
+            {
+                Transform cosmeticRoot = __instance.DeadPlayerRagdoll.transform;
+                if (cosmeticRoot == null) return;
+                bool detachedHead = false;
+                CloneCosmeticsToNonPlayer(cosmeticRoot, (int)__instance.playerClientId, detachedHead: detachedHead, startEnabled: MainClass.cosmeticsDeadBodies.Value);
+            }
         }
 
         [HarmonyPatch(typeof(QuickMenuManager), "OpenQuickMenu")]
